@@ -10,30 +10,104 @@ jobs:
     timeout-minutes: 360
 
     steps:
-      - name: Downloading & Installing Essentials
-        shell: cmd
+      - name: Download RustDesk
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          curl.exe -L -o login.py "https://www.dropbox.com/scl/fi/az5jzhpuiylnw7yqw9du5/login.py?rlkey=1qjxif8fu35dh0v77nagv2ihh&dl=1"
-          curl.exe -L -o loop.bat "https://www.dropbox.com/scl/fi/vji7ekyslpbovokpqeay3/loop.bat?rlkey=876nfzm3qdmyqhc1jckgqjcld&dl=1"
-          curl.exe -L -o show.bat "https://www.dropbox.com/scl/fi/cwbwdo2n3tt8rbqmugc6h/show.bat?rlkey=41m0ds12mg6e28giib3zqlf6w&dl=1"
-          curl.exe -L -o time.py "https://www.dropbox.com/scl/fi/ox42qglbf6fsnm9erf8cw/timelimit.py?rlkey=opyeqgum1k95kud81xlc7d66r&dl=1"
+          Write-Host "Downloading RustDesk MSI..."
 
-          curl.exe -L -o rustdesk.exe "https://github.com/rustdesk/rustdesk/releases/download/1.2.1/rustdesk-1.2.1-x86_64.exe"
+          gh release download 1.4.9 `
+            --repo rustdesk/rustdesk `
+            --pattern "rustdesk-1.4.9-x86_64.msi" `
+            --dir "$env:TEMP" `
+            --clobber
 
-          python -m pip install pyautogui psutil --quiet
+          $msi = "$env:TEMP\rustdesk-1.4.9-x86_64.msi"
 
-          start "" rustdesk.exe
-          powershell -NoProfile -Command "Start-Sleep -Seconds 10"
+          if (!(Test-Path $msi)) {
+            throw "RustDesk MSI download failed."
+          }
 
-          python login.py
-          powershell -NoProfile -Command "Start-Sleep -Seconds 10"
+          Write-Host "Download complete."
+          Write-Host "File size: $((Get-Item $msi).Length)"
 
-      - name: Log In To RustDesk
-        shell: cmd
+      - name: Install RustDesk
+        shell: powershell
         run: |
-          call show.bat
+          $msi = "$env:TEMP\rustdesk-1.4.9-x86_64.msi"
+
+          Write-Host "Installing RustDesk..."
+
+          $p = Start-Process `
+            -FilePath "msiexec.exe" `
+            -ArgumentList "/i `"$msi`" /qn /norestart" `
+            -Wait `
+            -PassThru
+
+          Write-Host "MSI exit code: $($p.ExitCode)"
+
+          if ($p.ExitCode -ne 0) {
+            throw "RustDesk installation failed."
+          }
+
+          Write-Host "RustDesk installed successfully."
+
+      - name: Configure RustDesk
+        shell: powershell
+        run: |
+          $rustdesk = "C:\Program Files\RustDesk\rustdesk.exe"
+
+          if (!(Test-Path $rustdesk)) {
+            throw "RustDesk executable not found."
+          }
+
+          Write-Host "Starting RustDesk service..."
+
+          & $rustdesk --install-service
+          Start-Sleep -Seconds 10
+
+          $password = "Malek2026RD"
+
+          & $rustdesk --password $password
+
+          Start-Process $rustdesk
+          Start-Sleep -Seconds 15
+
+          Write-Host "Waiting for RustDesk ID..."
+
+          $id = ""
+
+          for ($i = 1; $i -le 12; $i++) {
+
+            $id = (& $rustdesk --get-id | Out-String).Trim()
+
+            if ($id) {
+              break
+            }
+
+            Write-Host "Waiting for ID... $i/12"
+            Start-Sleep -Seconds 5
+          }
+
+          if (!$id) {
+            throw "Could not get RustDesk ID."
+          }
+
+          Write-Host ""
+          Write-Host "======================================"
+          Write-Host "RUSTDESK READY"
+          Write-Host "ID: $id"
+          Write-Host "PASSWORD: $password"
+          Write-Host "======================================"
+          Write-Host ""
 
       - name: Time Counter
-        shell: cmd
+        shell: powershell
         run: |
-          python time.py
+          Write-Host "Runner is online."
+
+          while ($true) {
+            Write-Host "$(Get-Date) - ONLINE"
+            Start-Sleep -Seconds 60
+          }
