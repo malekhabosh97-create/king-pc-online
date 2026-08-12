@@ -10,30 +10,58 @@ jobs:
     timeout-minutes: 360
 
     steps:
-      - name: Downloading & Installing Essentials
-        shell: cmd
+      - name: Download & Install RustDesk
+        shell: powershell
         run: |
-          curl.exe -L -o login.py "https://www.dropbox.com/scl/fi/az5jzhpuiylnw7yqw9du5/login.py?rlkey=1qjxif8fu35dh0v77nagv2ihh&dl=1"
-          curl.exe -L -o loop.bat "https://www.dropbox.com/scl/fi/vji7ekyslpbovokpqeay3/loop.bat?rlkey=876nfzm3qdmyqhc1jckgqjcld&dl=1"
-          curl.exe -L -o show.bat "https://www.dropbox.com/scl/fi/cwbwdo2n3tt8rbqmugc6h/show.bat?rlkey=41m0ds12mg6e28giib3zqlf6w&dl=1"
-          curl.exe -L -o time.py "https://www.dropbox.com/scl/fi/ox42qglbf6fsnm9erf8cw/timelimit.py?rlkey=opyeqgum1k95kud81xlc7d66r&dl=1"
+          Write-Host "Downloading RustDesk..."
 
-          curl.exe -L -o rustdesk.exe "https://github.com/rustdesk/rustdesk/releases/download/1.2.1/rustdesk-1.2.1-x86_64.exe"
+          Invoke-WebRequest `
+            -Uri "https://github.com/rustdesk/rustdesk/releases/download/1.4.9/rustdesk-1.4.9-x86_64.exe" `
+            -OutFile "$env:TEMP\rustdesk.exe"
 
-          python -m pip install pyautogui psutil --quiet
+          Write-Host "Download complete."
 
-          start "" rustdesk.exe
-          powershell -NoProfile -Command "Start-Sleep -Seconds 10"
+          Start-Process `
+            -FilePath "$env:TEMP\rustdesk.exe" `
+            -ArgumentList "--silent-install" `
+            -Wait
 
-          python login.py
-          powershell -NoProfile -Command "Start-Sleep -Seconds 10"
+          Start-Sleep -Seconds 10
 
-      - name: Log In To RustDesk
-        shell: cmd
+          $rustdesk = "C:\Program Files\RustDesk\rustdesk.exe"
+
+          if (!(Test-Path $rustdesk)) {
+            throw "RustDesk was not installed."
+          }
+
+          Write-Host "RustDesk installed."
+
+      - name: Configure RustDesk
+        shell: powershell
         run: |
-          call show.bat
+          $rustdesk = "C:\Program Files\RustDesk\rustdesk.exe"
+
+          Start-Process $rustdesk
+          Start-Sleep -Seconds 10
+
+          & $rustdesk --password "Malek2026RD" | Out-String
+
+          Start-Sleep -Seconds 5
+
+          $id = (& $rustdesk --get-id | Out-String).Trim()
+
+          Write-Host ""
+          Write-Host "==============================="
+          Write-Host "RUSTDESK READY"
+          Write-Host "ID: $id"
+          Write-Host "PASSWORD: Malek2026RD"
+          Write-Host "==============================="
+          Write-Host ""
 
       - name: Time Counter
-        shell: cmd
+        shell: powershell
         run: |
-          python time.py
+          while ($true) {
+            Write-Host "$(Get-Date) - Runner Online"
+            Start-Sleep -Seconds 60
+          }
