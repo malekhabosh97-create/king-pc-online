@@ -1,111 +1,32 @@
-name: Windows - RustDesk
+steps:
+  - name: Download RustDesk
+    shell: powershell
+    run: |
+      Write-Host "Downloading RustDesk..."
+      $url = "https://github.com/rustdesk/rustdesk/releases/download/1.4.9/rustdesk-1.4.9-x86_64.exe"
+      $outFile = "$env:TEMP\rustdesk.exe"
+      for ($i=1; $i -le 5; $i++) {
+        try {
+          Invoke-WebRequest -Uri $url -OutFile $outFile -UseBasicParsing -UserAgent "Mozilla/5.0"
+          Write-Host "Downloaded."
+          break
+        } catch {
+          Write-Warning "Retry $i - Error: $_"
+          Start-Sleep -Seconds 10
+          if ($i -eq 5) { throw "Download failed after 5 retries." }
+        }
+      }
+      if (!(Test-Path $outFile)) { exit 1 }
 
-on:
-  workflow_dispatch:
+  - name: Install RustDesk
+    shell: powershell
+    run: |
+      Write-Host "Installing..."
+      Start-Process -FilePath "$env:TEMP\rustdesk.exe" -ArgumentList "/S" -Wait
+      Start-Sleep -Seconds 15
+      $path = "C:\Program Files\RustDesk\rustdesk.exe"
+      if (!(Test-Path $path)) { throw "Installation failed" }
+      Write-Host "Installed successfully."
 
-jobs:
-  build:
-    name: Start Building...
-    runs-on: windows-latest
-    timeout-minutes: 360
-
-    steps:
-      - name: Download RustDesk
-        shell: cmd
-        run: |
-          echo Downloading RustDesk...
-
-          curl.exe -L ^
-            --fail ^
-            --retry 5 ^
-            --retry-delay 3 ^
-            --connect-timeout 30 ^
-            -o "%TEMP%\rustdesk.exe" ^
-            "https://github.com/rustdesk/rustdesk/releases/download/1.4.9/rustdesk-1.4.9-x86_64.exe"
-
-          if not exist "%TEMP%\rustdesk.exe" exit /b 1
-
-          echo Download complete.
-
-      - name: Install RustDesk
-        shell: powershell
-        run: |
-          Write-Host "Installing RustDesk..."
-
-          Start-Process `
-            -FilePath "$env:TEMP\rustdesk.exe" `
-            -ArgumentList "--silent-install"
-
-          Start-Sleep -Seconds 30
-
-          $rustdesk = "C:\Program Files\RustDesk\rustdesk.exe"
-
-          if (!(Test-Path $rustdesk)) {
-              throw "RustDesk installation failed."
-          }
-
-          Write-Host "RustDesk installed successfully."
-
-      - name: Start RustDesk Service
-        shell: powershell
-        run: |
-          $rustdesk = "C:\Program Files\RustDesk\rustdesk.exe"
-
-          Write-Host "Starting RustDesk service..."
-
-          & $rustdesk --install-service
-
-          Start-Sleep -Seconds 15
-
-          Start-Process $rustdesk
-
-          Start-Sleep -Seconds 15
-
-          Write-Host "RustDesk started."
-
-      - name: Get RustDesk Login
-        shell: powershell
-        run: |
-          $rustdesk = "C:\Program Files\RustDesk\rustdesk.exe"
-          $password = "Malek2026RD"
-
-          & $rustdesk --password $password
-
-          Write-Host "Waiting for RustDesk ID..."
-
-          $id = ""
-
-          for ($i = 1; $i -le 12; $i++) {
-
-              $id = (& $rustdesk --get-id | Out-String).Trim()
-
-              if ($id) {
-                  break
-              }
-
-              Write-Host "Waiting... attempt $i"
-              Start-Sleep -Seconds 5
-          }
-
-          if (!$id) {
-              throw "RustDesk started but no ID was received."
-          }
-
-          Write-Host ""
-          Write-Host "=========================================="
-          Write-Host "       RUSTDESK READY"
-          Write-Host "=========================================="
-          Write-Host "ID: $id"
-          Write-Host "PASSWORD: $password"
-          Write-Host "=========================================="
-          Write-Host ""
-
-      - name: Time Counter
-        shell: powershell
-        run: |
-          Write-Host "Runner is online."
-
-          while ($true) {
-              Write-Host "$(Get-Date) - ONLINE"
-              Start-Sleep -Seconds 60
-          }
+  # باقي الخطوات (Start, Get ID, Time Counter) تبقى كما هي،
+  # فقط زد عدد المحاولات في البحث عن ID إلى 20.
