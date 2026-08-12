@@ -10,7 +10,7 @@ jobs:
     timeout-minutes: 360
 
     steps:
-      - name: Download & Install RustDesk
+      - name: Download RustDesk
         shell: powershell
         run: |
           Write-Host "Downloading RustDesk..."
@@ -21,31 +21,17 @@ jobs:
 
           Write-Host "Download complete."
 
-          Start-Process `
-            -FilePath "$env:TEMP\rustdesk.exe" `
-            -ArgumentList "--silent-install" `
-            -Wait
-
-          Start-Sleep -Seconds 10
-
-          $rustdesk = "C:\Program Files\RustDesk\rustdesk.exe"
-
-          if (!(Test-Path $rustdesk)) {
-            throw "RustDesk was not installed."
-          }
-
-          Write-Host "RustDesk installed."
-
-      - name: Configure RustDesk
+      - name: Start RustDesk
         shell: powershell
         run: |
-          $rustdesk = "C:\Program Files\RustDesk\rustdesk.exe"
+          $rustdesk = "$env:TEMP\rustdesk.exe"
+
+          Write-Host "Starting RustDesk portable..."
 
           Start-Process $rustdesk
-          Start-Sleep -Seconds 10
+          Start-Sleep -Seconds 15
 
           & $rustdesk --password "Malek2026RD" | Out-String
-
           Start-Sleep -Seconds 5
 
           $id = (& $rustdesk --get-id | Out-String).Trim()
